@@ -4,7 +4,12 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
+// Replace the old app.use(cors()) line with this:
+app.use(cors({
+    origin: '*', // Allows all origins
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type']
+}));
 app.use(express.json());
 
 // MongoDB Connection
@@ -14,7 +19,7 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // Database Schema
 const submissionSchema = new mongoose.Schema({
-    student_name: String,
+    name: String,
     aadhar: String,
     full_data: String,
     timestamp: { type: Date, default: Date.now }
