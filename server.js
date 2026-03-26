@@ -24,7 +24,7 @@ const submissionSchema = new mongoose.Schema({
 
 const Submission = mongoose.model('Submission', submissionSchema);
 
-const ADMIN_PASS = process.env.ADMIN_PASS || 'admin123'; 
+const ADMIN_PASS = process.env.ADMIN_PASSWORD;
 
 app.post('/api/submit', async (req, res) => {
     try {
