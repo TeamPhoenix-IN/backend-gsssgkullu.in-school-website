@@ -7,16 +7,14 @@ const app = express();
 app.use(cors({
     origin: '*', 
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type']
+    allowedHeaders: ['Content-Type', 'Authorization'] 
 }));
 app.use(express.json());
 
-// MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('Connected to MongoDB Atlas'))
     .catch(err => console.error('MongoDB connection error:', err));
 
-// Database Schema
 const submissionSchema = new mongoose.Schema({
     student_name: String,
     aadhar: String,
@@ -26,18 +24,29 @@ const submissionSchema = new mongoose.Schema({
 
 const Submission = mongoose.model('Submission', submissionSchema);
 
-// API Routes
+const ADMIN_PASS = process.env.ADMIN_PASS || 'admin123'; 
+
 app.post('/api/submit', async (req, res) => {
     try {
         const formData = req.body;
-        const newSubmission = new Submission({
-            student_name: formData.studentName || formData.name || 'Unknown',
-            aadhar: formData.aadhar || 'N/A',
-            full_data: JSON.stringify(formData)
-        });
         
-        const savedSubmission = await newSubmission.save();
-        res.status(200).json({ success: true, id: savedSubmission._id });
+        let existingSubmission = await Submission.findOne({ aadhar: formData.aadhar });
+        
+        if (existingSubmission) {
+            existingSubmission.student_name = formData.studentName || formData.name || 'Unknown';
+            existingSubmission.full_data = JSON.stringify(formData);
+            existingSubmission.timestamp = Date.now();
+            await existingSubmission.save();
+            return res.status(200).json({ success: true, id: existingSubmission._id, isUpdate: true });
+        } else {
+            const newSubmission = new Submission({
+                student_name: formData.studentName || formData.name || 'Unknown',
+                aadhar: formData.aadhar || 'N/A',
+                full_data: JSON.stringify(formData)
+            });
+            const savedSubmission = await newSubmission.save();
+            return res.status(200).json({ success: true, id: savedSubmission._id, isUpdate: false });
+        }
     } catch (err) {
         console.error("Database error:", err.message);
         res.status(500).json({ error: err.message });
@@ -45,6 +54,9 @@ app.post('/api/submit', async (req, res) => {
 });
 
 app.get('/api/submissions', async (req, res) => {
+    if (req.headers.authorization !== ADMIN_PASS) {
+        return res.status(401).json({ error: "Unauthorized" });
+    }
     try {
         const submissions = await Submission.find().sort({ timestamp: -1 });
         res.status(200).json(submissions);
@@ -53,8 +65,22 @@ app.get('/api/submissions', async (req, res) => {
     }
 });
 
-// Delete Route
+app.get('/api/submissions/aadhar/:aadhar', async (req, res) => {
+    try {
+        const submission = await Submission.findOne({ aadhar: req.params.aadhar }).sort({ timestamp: -1 });
+        if (!submission) {
+            return res.status(404).json({ error: "Not found" });
+        }
+        res.status(200).json(submission);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.delete('/api/submissions/:id', async (req, res) => {
+    if (req.headers.authorization !== ADMIN_PASS) {
+        return res.status(401).json({ error: "Unauthorized" });
+    }
     try {
         const deletedSubmission = await Submission.findByIdAndDelete(req.params.id);
         if (!deletedSubmission) {
