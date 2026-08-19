@@ -141,6 +141,21 @@ app.delete('/api/submissions/:id', requireAdmin, async (req, res) => {
     }
 });
 
+app.put('/api/submissions/:id', requireAdmin, async (req, res) => {
+    try {
+        const { student_name, aadhar, full_data } = req.body;
+        const updated = await Submission.findByIdAndUpdate(
+            req.params.id,
+            { student_name, aadhar, full_data },
+            { new: true }
+        );
+        if (!updated) return res.status(404).json({ error: 'Not found' });
+        res.status(200).json(updated);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // NOTICES
 // ═══════════════════════════════════════════════════════════════════════════════
